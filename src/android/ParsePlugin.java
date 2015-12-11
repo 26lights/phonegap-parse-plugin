@@ -3,6 +3,7 @@ package org.apache.cordova.core;
 import android.app.Application;
 import android.util.Log;
 
+import java.util.List;
 import java.util.Set;
 
 import org.apache.cordova.CallbackContext;
@@ -11,8 +12,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import com.parse.Parse;
+import com.parse.ParseException;
 import com.parse.ParseInstallation;
-import com.parse.PushService;
+import com.parse.ParsePush;
+import com.parse.SaveCallback;
 
 public class ParsePlugin extends CordovaPlugin {
     public static final String TAG = "ParsePlugin";
@@ -69,7 +72,8 @@ public class ParsePlugin extends CordovaPlugin {
     private void initialize(final CallbackContext callbackContext, final JSONArray args) {
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
-            PushService.setDefaultPushCallback(cordova.getActivity(), cordova.getActivity().getClass());
+//            PushService.setDefaultPushCallback(cordova.getActivity(), cordova.getActivity().getClass());
+            Parse.initialize(cordova.getActivity(), "whYC1B0HvZjP5heNDJ8P9Z9zzjggsJbO2qPmrBAA", "wr1B2pBuspCeJJg7MatCott5E7qL9NgbyPxT8q4c");
             ParseInstallation.getCurrentInstallation().saveInBackground();
             callbackContext.success();
             }
@@ -97,7 +101,7 @@ public class ParsePlugin extends CordovaPlugin {
     private void getSubscriptions(final CallbackContext callbackContext) {
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
-                 Set<String> subscriptions = PushService.getSubscriptions(cordova.getActivity());
+                List<String> subscriptions = ParseInstallation.getCurrentInstallation().getList("channels");;
                  callbackContext.success(subscriptions.toString());
             }
         });
@@ -106,8 +110,12 @@ public class ParsePlugin extends CordovaPlugin {
     private void subscribe(final String channel, final CallbackContext callbackContext) {
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
-                PushService.subscribe(cordova.getActivity(), channel, cordova.getActivity().getClass());
-                callbackContext.success();
+                ParsePush.subscribeInBackground(channel, new SaveCallback() {
+                    @Override
+                    public void done(ParseException e) {
+                        callbackContext.success();
+                    }
+                });
             }
         });
     }
@@ -115,8 +123,12 @@ public class ParsePlugin extends CordovaPlugin {
     private void unsubscribe(final String channel, final CallbackContext callbackContext) {
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
-                PushService.unsubscribe(cordova.getActivity(), channel);
-                callbackContext.success();
+                ParsePush.unsubscribeInBackground(channel, new SaveCallback() {
+                    @Override
+                    public void done(ParseException e) {
+                        callbackContext.success();
+                    }
+                });
             }
         });
     }
