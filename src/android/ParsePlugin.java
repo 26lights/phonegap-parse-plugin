@@ -26,14 +26,6 @@ public class ParsePlugin extends CordovaPlugin {
     public static final String ACTION_SUBSCRIBE = "subscribe";
     public static final String ACTION_UNSUBSCRIBE = "unsubscribe";
 
-    public static void initializeParseWithApplication(Application app) {
-        String appId = getStringByKey(app, "parse_app_id");
-        String clientKey = getStringByKey(app, "parse_client_key");
-        Parse.enableLocalDatastore(app);
-        Log.d(TAG, "Initializing with parse_app_id: " + appId + " and parse_client_key:" + clientKey);
-        Parse.initialize(app, appId, clientKey);
-    }
-
     private static String getStringByKey(Application app, String key) {
         int resourceId = app.getResources().getIdentifier(key, "string", app.getPackageName());
         return app.getString(resourceId);
@@ -72,10 +64,39 @@ public class ParsePlugin extends CordovaPlugin {
     private void initialize(final CallbackContext callbackContext, final JSONArray args) {
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
-//            PushService.setDefaultPushCallback(cordova.getActivity(), cordova.getActivity().getClass());
-            Parse.initialize(cordova.getActivity(), "whYC1B0HvZjP5heNDJ8P9Z9zzjggsJbO2qPmrBAA", "wr1B2pBuspCeJJg7MatCott5E7qL9NgbyPxT8q4c");
-            ParseInstallation.getCurrentInstallation().saveInBackground();
-            callbackContext.success();
+                Application app = cordova.getActivity().getApplication();
+
+                String appId = getStringByKey(app, "parse_app_id");
+                String clientKey = getStringByKey(app, "parse_client_key");
+
+                Log.d("ParsePlugin", "Initializing Parse with " + appId + " / " + clientKey);
+
+                try {
+                    Parse.enableLocalDatastore(app);
+                } catch (IllegalStateException e) {
+                    Log.d("ParsePlugin", "Parse is already initialized.");
+                    setupCurrentInstallation(callbackContext);
+                    return;
+                }
+
+                Parse.initialize(app, appId, clientKey);
+                setupCurrentInstallation(callbackContext);
+            }
+        });
+    }
+
+    private void setupCurrentInstallation(final CallbackContext callbackContext) {
+        final ParseInstallation currentInstallation = ParseInstallation.getCurrentInstallation();
+        currentInstallation.saveInBackground(new SaveCallback() {
+            @Override
+            public void done(ParseException e) {
+                if (e == null) {
+                    Log.d("ParsePlugin", "Parse successfully initialized.");
+                    callbackContext.success(currentInstallation.getInstallationId());
+                } else {
+                    Log.d("ParsePlugin", "Parse initialization failed.");
+                    callbackContext.error(e.getMessage());
+                }
             }
         });
     }
